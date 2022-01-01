@@ -13,6 +13,8 @@ use tokio::select;
 use tokio::time::{self, error::Elapsed, Instant, Sleep};
 #[cfg(feature = "websocket")]
 use ws_stream_tungstenite::WsStream;
+#[cfg(feature = "websocket")]
+use http::header::{SEC_WEBSOCKET_PROTOCOL, USER_AGENT};
 
 use std::io;
 #[cfg(unix)]
@@ -288,8 +290,8 @@ async fn network_connect(options: &MqttOptions) -> Result<Network, ConnectionErr
             let request = http::Request::builder()
                 .method(http::Method::GET)
                 .uri(options.broker_addr.as_str())
-                .header("Sec-WebSocket-Protocol", "mqttv3.1")
-                .header("User-Agent", format!("rumqttc/{}", env!("CARGO_PKG_VERSION")))
+                .header(SEC_WEBSOCKET_PROTOCOL, "mqttv3.1")
+                .header(USER_AGENT, format!("rumqttc/{}", env!("CARGO_PKG_VERSION")))
                 .body(())
                 .unwrap();
 
@@ -304,8 +306,8 @@ async fn network_connect(options: &MqttOptions) -> Result<Network, ConnectionErr
             let request = http::Request::builder()
                 .method(http::Method::GET)
                 .uri(options.broker_addr.as_str())
-                .header("Sec-WebSocket-Protocol", "mqttv3.1")
-                .header("User-Agent", format!("rumqttc/{}", env!("CARGO_PKG_VERSION")))
+                .header(SEC_WEBSOCKET_PROTOCOL, "mqttv3.1")
+                .header(USER_AGENT, format!("rumqttc/{}", env!("CARGO_PKG_VERSION")))
                 .body(())
                 .unwrap();
 
