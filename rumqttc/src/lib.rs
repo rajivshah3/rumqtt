@@ -332,6 +332,9 @@ pub struct MqttOptions {
     last_will: Option<LastWill>,
     /// Connection timeout
     conn_timeout: u64,
+    /// User-Agent header for initial HTTP request
+    #[cfg(feature = "websocket")]
+    user_agent: String,
 }
 
 impl MqttOptions {
@@ -490,6 +493,17 @@ impl MqttOptions {
     /// get timeout in secs
     pub fn connection_timeout(&self) -> u64 {
         self.conn_timeout
+    }
+
+    #[cfg(feature = "websocket")]
+    pub fn set_user_agent(&mut self, user_agent: String) -> &mut Self {
+        self.user_agent = user_agent;
+        self
+    }
+
+    #[cfg(feature = "websocket")]
+    pub fn user_agent(&self) -> String {
+        self.user_agent
     }
 }
 
