@@ -361,6 +361,8 @@ impl MqttOptions {
             inflight: 100,
             last_will: None,
             conn_timeout: 5,
+            #[cfg(feature = "websocket")]
+            user_agent: format!("rumqttc/{}", env!("CARGO_PKG_VERSION")),
         }
     }
 
@@ -495,15 +497,17 @@ impl MqttOptions {
         self.conn_timeout
     }
 
+    /// Set User-Agent header for initial HTTP request
     #[cfg(feature = "websocket")]
     pub fn set_user_agent(&mut self, user_agent: String) -> &mut Self {
         self.user_agent = user_agent;
         self
     }
 
+    /// User-Agent header for initial HTTP request
     #[cfg(feature = "websocket")]
     pub fn user_agent(&self) -> String {
-        self.user_agent
+        self.user_agent.clone()
     }
 }
 
