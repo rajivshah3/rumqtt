@@ -499,8 +499,8 @@ impl MqttOptions {
 
     /// Set User-Agent header for initial HTTP request
     #[cfg(feature = "websocket")]
-    pub fn set_user_agent(&mut self, user_agent: String) -> &mut Self {
-        self.user_agent = user_agent;
+    pub fn set_user_agent<S: Into<String>>(&mut self, user_agent: S) -> &mut Self {
+        self.user_agent = user_agent.into();
         self
     }
 

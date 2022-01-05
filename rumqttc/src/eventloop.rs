@@ -291,7 +291,7 @@ async fn network_connect(options: &MqttOptions) -> Result<Network, ConnectionErr
                 .method(http::Method::GET)
                 .uri(options.broker_addr.as_str())
                 .header(SEC_WEBSOCKET_PROTOCOL, "mqttv3.1")
-                .header(USER_AGENT, format!("rumqttc/{}", env!("CARGO_PKG_VERSION")))
+                .header(USER_AGENT, options.user_agent())
                 .body(())
                 .unwrap();
 
@@ -307,7 +307,7 @@ async fn network_connect(options: &MqttOptions) -> Result<Network, ConnectionErr
                 .method(http::Method::GET)
                 .uri(options.broker_addr.as_str())
                 .header(SEC_WEBSOCKET_PROTOCOL, "mqttv3.1")
-                .header(USER_AGENT, format!("rumqttc/{}", env!("CARGO_PKG_VERSION")))
+                .header(USER_AGENT, options.user_agent())
                 .body(())
                 .unwrap();
 
