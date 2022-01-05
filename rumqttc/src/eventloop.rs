@@ -5,6 +5,8 @@ use crate::{MqttOptions, Outgoing};
 use async_channel::{bounded, Receiver, Sender};
 #[cfg(feature = "websocket")]
 use async_tungstenite::tokio::{connect_async, connect_async_with_tls_connector};
+#[cfg(feature = "websocket")]
+use http::header::{SEC_WEBSOCKET_PROTOCOL, USER_AGENT};
 use mqttbytes::v4::*;
 use tokio::net::TcpStream;
 #[cfg(unix)]
@@ -13,8 +15,6 @@ use tokio::select;
 use tokio::time::{self, error::Elapsed, Instant, Sleep};
 #[cfg(feature = "websocket")]
 use ws_stream_tungstenite::WsStream;
-#[cfg(feature = "websocket")]
-use http::header::{SEC_WEBSOCKET_PROTOCOL, USER_AGENT};
 
 use std::io;
 #[cfg(unix)]
