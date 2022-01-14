@@ -1,8 +1,18 @@
 use tokio::net::TcpStream;
+
+#[cfg(feature = "rust-tls")]
 use tokio_rustls::rustls::internal::pemfile::{certs, pkcs8_private_keys, rsa_private_keys};
+#[cfg(feature = "rust-tls")]
 use tokio_rustls::rustls::{ClientConfig, TLSError};
+#[cfg(feature = "rust-tls")]
 use tokio_rustls::webpki::{self, DNSNameRef, InvalidDNSNameError};
-use tokio_rustls::{client::TlsStream, TlsConnector};
+#[cfg(feature = "rust-tls")]
+use tokio_rustls::{client::TlsStream as RustTlsStream, TlsConnector as RustTlsConnector};
+
+#[cfg(feature = "native-tls")]
+use tokio_native_tls::native_tls::{TlsConnector as NativeTlsConnector, Certificate, TlsStream as NativeTlsStream, Error as NativeTlsError};
+#[cfg(feature = "native-tls")]
+use webpki::{self, DNSNameRef, InvalidDNSNameError};
 
 use crate::{Key, MqttOptions, TlsConfiguration};
 
@@ -21,8 +31,12 @@ pub enum Error {
     WebPki(#[from] webpki::Error),
     #[error("DNS name")]
     DNSName(#[from] InvalidDNSNameError),
+    #[cfg(feature = "rust-tls")]
     #[error("TLS error")]
     TLS(#[from] TLSError),
+    #[cfg(feature = "native-tls")]
+    #[error("TLS error")]
+    TLS(#[from] NativeTlsError),
     #[error("No valid cert in chain")]
     NoValidCertInChain,
 }
@@ -34,7 +48,8 @@ impl From<()> for Error {
     }
 }
 
-pub async fn tls_connector(tls_config: &TlsConfiguration) -> Result<TlsConnector, Error> {
+#[cfg(feature = "rust-tls")]
+pub async fn tls_connector(tls_config: &TlsConfiguration) -> Result<RustTlsConnector, Error> {
     let config = match tls_config {
         TlsConfiguration::Simple {
             ca,
@@ -90,13 +105,70 @@ pub async fn tls_connector(tls_config: &TlsConfiguration) -> Result<TlsConnector
         TlsConfiguration::Rustls(tls_client_config) => tls_client_config.clone(),
     };
 
-    Ok(TlsConnector::from(config))
+    Ok(RustTlsConnector::from(config))
 }
 
+#[cfg(feature = "native-tls")]
+pub async fn tls_connector(tls_config: &TlsConfiguration) -> Result<NativeTlsConnector, Error> {
+    let config = match tls_config {
+        TlsConfiguration::Simple {
+            ca,
+            alpn,
+            client_auth,
+        } => {
+            let mut config_builder = NativeTlsConnector::builder();
+
+            // Based on tls_connector for rustls
+
+            // Add ca to root store if the connection is TLS
+            let ca_certificate = Certificate::from_pem(&ca)?;
+            config_builder.add_root_certificate(ca_certificate);
+
+            // Add der encoded client cert and key
+            if let Some(client) = client_auth.as_ref() {
+                let certs = rustls_pemfile::certs(&mut BufReader::new(Cursor::new(client.0.clone())))?;
+                // load appropriate Key as per the user request. The underlying signature algorithm
+                // of key generation determines the Signature Algorithm during the TLS Handskahe.
+                let read_keys = match &client.1 {
+                    Key::RSA(k) => rustls_pemfile::rsa_private_keys(&mut BufReader::new(Cursor::new(k.clone()))),
+                    Key::ECC(k) => rustls_pemfile::pkcs8_private_keys(&mut BufReader::new(Cursor::new(k.clone()))),
+                };
+                let keys = match read_keys {
+                    Ok(v) => v,
+                    Err(_e) => return Err(Error::NoValidCertInChain),
+                };
+
+                // Get the first key. Error if it's not valid
+                let key = match keys.first() {
+                    Some(k) => k.clone(),
+                    None => return Err(Error::NoValidCertInChain),
+                };
+
+                config.set_single_client_cert(certs, key)?;
+            }
+        }
+    };
+}
+
+#[cfg(feature = "rust-tls")]
 pub async fn tls_connect(
     options: &MqttOptions,
     tls_config: &TlsConfiguration,
-) -> Result<TlsStream<TcpStream>, Error> {
+) -> Result<RustTlsStream<TcpStream>, Error> {
+    let addr = options.broker_addr.as_str();
+    let port = options.port;
+    let connector = tls_connector(tls_config).await?;
+    let domain = DNSNameRef::try_from_ascii_str(&options.broker_addr)?;
+    let tcp = TcpStream::connect((addr, port)).await?;
+    let tls = connector.connect(domain, tcp).await?;
+    Ok(tls)
+}
+
+#[cfg(feature = "native-tls")]
+pub async fn tls_connect(
+    options: &MqttOptions,
+    tls_config: &TlsConfiguration,
+) -> Result<NativeTlsStream<TcpStream>, Error> {
     let addr = options.broker_addr.as_str();
     let port = options.port;
     let connector = tls_connector(tls_config).await?;

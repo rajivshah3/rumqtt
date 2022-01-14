@@ -115,8 +115,13 @@ pub use eventloop::{ConnectionError, Event, EventLoop};
 pub use mqttbytes::v4::*;
 pub use mqttbytes::*;
 pub use state::{MqttState, StateError};
+#[cfg(feature = "rust-tls")]
 pub use tokio_rustls::rustls::internal::pemfile::{certs, pkcs8_private_keys, rsa_private_keys};
+#[cfg(feature = "rust-tls")]
 pub use tokio_rustls::rustls::ClientConfig;
+#[cfg(feature = "native-tls")]
+pub use tokio_native_tls::native_tls::TlsConnector;
+
 pub use tls::Error;
 
 pub type Incoming = Packet;
@@ -282,13 +287,25 @@ pub enum TlsConfiguration {
         /// tls client_authentication
         client_auth: Option<(Vec<u8>, Key)>,
     },
+    #[cfg(feature = "rust-tls")]
     /// Injected rustls ClientConfig for TLS, to allow more customisation.
     Rustls(Arc<ClientConfig>),
+    #[cfg(feature = "native-tls")]
+    /// Injected native-tls TlsConnector for TLS, to allow more customisation.
+    NativeTls(Arc<TlsConnector>),
 }
 
+#[cfg(feature = "rust-tls")]
 impl From<ClientConfig> for TlsConfiguration {
     fn from(config: ClientConfig) -> Self {
         TlsConfiguration::Rustls(Arc::new(config))
+    }
+}
+
+#[cfg(feature = "native-tls")]
+impl From<TlsConnector> for TlsConfiguration {
+    fn from(connector: TlsConnector) -> Self {
+        TlsConfiguration::NativeTls(Arc::new(connector))
     }
 }
 
